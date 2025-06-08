@@ -3,57 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ส่งข้อความไปยัง Telegram Bot</title>
+    <title>ตรวจจับรุ่นโทรศัพท์และ IP</title>
 </head>
 <body>
-    <h1>ส่งข้อความไปยัง Telegram Bot</h1>
-    
-    <label for="message">ข้อความที่ต้องการส่ง:</label>
-    <input type="text" id="message" placeholder="พิมพ์ข้อความที่นี่">
-    <button onclick="sendMessage()">ส่งข้อความ</button>
+    <h1>ตรวจจับรุ่นโทรศัพท์และ IP ของคุณ</h1>
+    <button onclick="sendDeviceInfo()">ส่งข้อมูลไปยัง Telegram Bot</button>
 
     <script>
-        // ใส่ Bot Token และ chat_id ของคุณ
-        const botToken = '7586163097:AAFW-1cPYSRPGOdq9zJr0kOJh--gknZjyUU';  // Token ของบอท
-        const chatId = '5492311099';      // Chat ID ที่ต้องการส่งข้อความ
+        const botToken = 'YOUR_BOT_TOKEN';  // ใส่ Bot Token ของคุณที่ได้จาก BotFather
+        const chatId = 'YOUR_CHAT_ID';      // ใส่ Chat ID ของคุณหรือกลุ่มที่ต้องการส่งข้อมูล
 
-        // ฟังก์ชันส่งข้อความ
-        function sendMessage() {
-            const message = document.getElementById("message").value;
+        // ฟังก์ชันตรวจจับรุ่นโทรศัพท์
+        function getDeviceInfo() {
+            const userAgent = navigator.userAgent;
 
-            if (message.trim() === "") {
-                alert("กรุณากรอกข้อความ");
-                return;
+            let deviceInfo = 'ไม่สามารถตรวจจับข้อมูลได้';
+
+            // ตรวจจับรุ่นโทรศัพท์
+            if (userAgent.match(/android/i)) {
+                deviceInfo = 'Android Device';
+            } else if (userAgent.match(/iphone|ipod/i)) {
+                deviceInfo = 'iPhone / iPod Device';
+            } else if (userAgent.match(/ipad/i)) {
+                deviceInfo = 'iPad Device';
+            } else if (userAgent.match(/windows phone/i)) {
+                deviceInfo = 'Windows Phone Device';
+            } else {
+                deviceInfo = 'ไม่ทราบรุ่นโทรศัพท์';
             }
 
-            // สร้าง URL ของ Telegram API
-            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+            return deviceInfo;
+        }
 
-            // สร้างข้อมูลสำหรับการส่ง request
+        // ฟังก์ชันตรวจจับที่อยู่ IP โดยใช้ API
+        function getIP() {
+            return fetch('https://api.ipify.org?format=json')  // API ที่ใช้ดึง IP
+                .then(response => response.json())
+                .then(data => data.ip)
+                .catch(error => console.error('ไม่สามารถดึง IP ได้:', error));
+        }
+
+        // ฟังก์ชันส่งข้อมูลไปยัง Telegram Bot
+        async function sendDeviceInfo() {
+            const deviceInfo = getDeviceInfo();  // ตรวจจับรุ่นโทรศัพท์
+
+            // ดึงที่อยู่ IP ของผู้ใช้
+            const ip = await getIP();
+
+            // สร้างข้อความที่จะส่งไปยัง Telegram Bot
+            const message = `ข้อมูลจากผู้ใช้:
+            - รุ่นโทรศัพท์: ${deviceInfo}
+            - ที่อยู่ IP: ${ip}`;
+
+            // ส่งข้อมูลไปยัง Telegram Bot ผ่าน API
+            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
             const data = {
                 chat_id: chatId,
-                text: message,
+                text: message
             };
 
-            // ใช้ Fetch API ส่ง POST request
+            // ส่งคำขอ POST
             fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(data),
+                body: JSON.stringify(data)
             })
             .then(response => response.json())
             .then(data => {
                 if (data.ok) {
-                    alert("ส่งข้อความสำเร็จ!");
+                    alert('ข้อมูลถูกส่งไปยัง Telegram Bot เรียบร้อย!');
                 } else {
-                    alert("เกิดข้อผิดพลาดในการส่งข้อความ");
+                    alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
                 }
             })
             .catch(error => {
-                console.error("Error:", error);
-                alert("เกิดข้อผิดพลาดในการส่งข้อความ");
+                console.error('Error:', error);
+                alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
             });
         }
     </script>
