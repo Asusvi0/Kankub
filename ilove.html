@@ -3,85 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ตรวจจับรุ่นโทรศัพท์และ IP</title>
+    <title>ส่งข้อความไปยัง Telegram Bot</title>
 </head>
 <body>
-    <h1>ตรวจจับรุ่นโทรศัพท์และ IP ของคุณ</h1>
-    <button onclick="sendDeviceInfo()">ส่งข้อมูลไปยัง Telegram Bot</button>
+    <h1>ส่งโลเคชันของคุณไปยัง Telegram Bot</h1>
+    <button onclick="getLocationAndSend()">ส่งตำแหน่ง</button>
 
     <script>
-        const botToken = '7586163097:AAFW-1cPYSRPGOdq9zJr0kOJh--gknZjyUU';  // ใส่ Bot Token ของคุณที่ได้จาก BotFather
-        const chatId = '5492311099';      // ใส่ Chat ID ของคุณหรือกลุ่มที่ต้องการส่งข้อมูล
+        const botToken = '7586163097:AAFW-1cPYSRPGOdq9zJr0kOJh--gknZjyUU';  // ใส่ Bot Token ของคุณ
+        const chatId = '5492311099';      // ใส่ Chat ID ของคุณ
 
-        // ฟังก์ชันตรวจจับรุ่นโทรศัพท์
-        function getDeviceInfo() {
-            const userAgent = navigator.userAgent;
+        // ฟังก์ชันขอรับข้อมูลตำแหน่งจาก Geolocation API และส่งไปยัง Telegram Bot
+        function getLocationAndSend() {
+            if (navigator.geolocation) {
+                // ขอข้อมูลตำแหน่งจาก Geolocation API
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
 
-            let deviceInfo = 'ไม่สามารถตรวจจับข้อมูลได้';
+                    // สร้างข้อความที่ส่งไปยัง Telegram Bot
+                    const message = `ตำแหน่งของผู้ใช้:
+                    - Latitude: ${latitude}
+                    - Longitude: ${longitude}
+                    
+                    ลิงก์แสดงตำแหน่งบน Google Maps: https://maps.google.com/?q=${latitude},${longitude}`;
 
-            // ตรวจจับรุ่นโทรศัพท์
-            if (userAgent.match(/android/i)) {
-                deviceInfo = 'Android Device';
-            } else if (userAgent.match(/iphone|ipod/i)) {
-                deviceInfo = 'iPhone / iPod Device';
-            } else if (userAgent.match(/ipad/i)) {
-                deviceInfo = 'iPad Device';
-            } else if (userAgent.match(/windows phone/i)) {
-                deviceInfo = 'Windows Phone Device';
+                    // ส่งข้อมูลไปยัง Telegram Bot ผ่าน API
+                    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+                    const data = {
+                        chat_id: chatId,
+                        text: message
+                    };
+
+                    // ส่งคำขอ POST
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.ok) {
+                            alert('ข้อความถูกส่งไปยังTelegram Bot เรียบร้อย!');
+                        } else {
+                            alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+                    });
+                }, function(error) {
+                    alert('ไม่สามารถเข้าถึง!');
+                    console.error(error);
+                });
             } else {
-                deviceInfo = 'ไม่ทราบรุ่นโทรศัพท์';
+                alert("เบราว์เซอร์ของคุณไม่รองรับ  API");
             }
-
-            return deviceInfo;
-        }
-
-        // ฟังก์ชันตรวจจับที่อยู่ IP โดยใช้ API
-        function getIP() {
-            return fetch('https://api.ipify.org?format=json')  // API ที่ใช้ดึง IP
-                .then(response => response.json())
-                .then(data => data.ip)
-                .catch(error => console.error('ไม่สามารถดึง IP ได้:', error));
-        }
-
-        // ฟังก์ชันส่งข้อมูลไปยัง Telegram Bot
-        async function sendDeviceInfo() {
-            const deviceInfo = getDeviceInfo();  // ตรวจจับรุ่นโทรศัพท์
-
-            // ดึงที่อยู่ IP ของผู้ใช้
-            const ip = await getIP();
-
-            // สร้างข้อความที่จะส่งไปยัง Telegram Bot
-            const message = `ข้อมูลจากผู้ใช้:
-            - รุ่นโทรศัพท์: ${deviceInfo}
-            - ที่อยู่ IP: ${ip}`;
-
-            // ส่งข้อมูลไปยัง Telegram Bot ผ่าน API
-            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-            const data = {
-                chat_id: chatId,
-                text: message
-            };
-
-            // ส่งคำขอ POST
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.ok) {
-                    alert('ข้อมูลถูกส่งไปยัง Telegram Bot เรียบร้อย!');
-                } else {
-                    alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
-            });
         }
     </script>
 </body>
