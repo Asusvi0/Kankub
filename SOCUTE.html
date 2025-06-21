@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Max Stress Test Start</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+</head>
+<body>
+<script>
+let buffers = [];
+let memoryHog = [];
+const initialBuffersCount = 100;   // สร้าง buffer ใหญ่ 100 อันตั้งแต่แรก (เยอะมาก)
+const initialMemoryBlocks = 200;   // สร้าง array 1 ล้าน 200 ก้อนตั้งแต่แรก (หนักมาก)
+
+function setup() {
+  pixelDensity(1);
+  createCanvas(windowWidth, windowHeight);
+  colorMode(HSB, 1, 1, 1);
+  noStroke();
+  frameRate(60);
+  background(0);
+
+  // สร้างบัฟเฟอร์ใหญ่ๆ ทันทีตั้งแต่ setup
+  for (let i = 0; i < initialBuffersCount; i++) {
+    let g = createGraphics(width, height);
+    g.background(random(1), 1, 1, 0.05);
+    g.ellipse(random(width), random(height), 100, 100);
+    buffers.push(g);
+  }
+
+  // สร้าง array ใหญ่ ๆ เพื่อกิน RAM ตั้งแต่แรก
+  for (let i = 0; i < initialMemoryBlocks; i++) {
+    memoryHog.push(new Array(1_000_000).fill(Math.random()));
+  }
+}
+
+function draw() {
+  background(0, 0, 0, 0.1);
+
+  // วาดบัฟเฟอร์ทั้งหมดซ้ำ ๆ → กิน GPU
+  for (let g of buffers) {
+    image(g, 0, 0);
+  }
+
+  // แสดงสถานะ
+  fill(0, 1, 1);
+  textSize(16);
+  text(`Buffers: ${buffers.length} | Memory blocks: ${memoryHog.length}`, 10, 30);
+}
+</script>
+</body>
+</html>
